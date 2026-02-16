@@ -280,7 +280,6 @@ proc comboEditor(window: Window, opts: Opts, prot: MRProtocolRef, propertyName: 
     nameLabel.heightMode = HeightMode_Fill
     nameLabel.yTextAlign = YTextAlign_Center
     var propertyCombo = newComboBox()
-    propertyCombo.value = prot[propertyName].stringVal
     propertyCombo.widthMode = WidthMode_Expand
     
     comboContainer.add(nameLabel)
@@ -313,6 +312,7 @@ proc comboEditor(window: Window, opts: Opts, prot: MRProtocolRef, propertyName: 
         propertyCombo.options = optionsSeq
     else:
         propertyCombo.options = prot[propertyName].stringList
+    propertyCombo.value = prot[propertyName].stringVal
 
 
     proc okPressCallback(click: ClickEvent) =
@@ -337,8 +337,8 @@ proc comboEditor(window: Window, opts: Opts, prot: MRProtocolRef, propertyName: 
 proc showPropertyEditor*(opts: Opts, prot: MRProtocolRef, propertyName: string, validateProc: ProcValidateProtocol): Window {. discardable .} =
     let prop = prot[propertyName]
     var editorWindow = newWindow("Edit property " & propertyName)
-    editorWindow.width = 300
-    editorWindow.height = 150
+    editorWindow.width = 300.scaleToDpi
+    editorWindow.height = 150.scaleToDpi
     var container: LayoutContainer
     case prop.pType
     of ptInt:
@@ -349,6 +349,8 @@ proc showPropertyEditor*(opts: Opts, prot: MRProtocolRef, propertyName: string, 
         container = boolEditor(editorWindow, opts, prot, propertyName, validateProc)
     of ptStringList:
         container = comboEditor(editorWindow, opts, prot, propertyName, validateProc)
+    of ptDescription:
+        discard
     editorWindow.add(container)
     return editorWindow
 
@@ -365,32 +367,34 @@ var validateTest: ProcValidateProtocol = proc (opts: Opts, protocol: MRProtocolR
         return false
     return true
 
-var teProperty = ProtocolProperty(pType: ptFloat, floatMin: 0, floatMax: 1000, floatVal: 50, floatIncr: 1, validateStrategy: pvDoSearch, changed: false, unit: "ms")
-var intProperty = ProtocolProperty(pType: ptInt, intMin: 20, intMax: 100, intVal: 50, intIncr: 1, validateStrategy: pvNoSearch, changed: false, unit: "u")
-var boolProperty = ProtocolProperty(pType: ptBool, boolVal: true, validateStrategy: pvNoSearch, changed: false, unit: "")
-var stringProperty = ProtocolProperty(pType: ptStringList, stringVal: "Hello", stringList: @["Ciao", "Hello", "Hallo", "Geia"], validateStrategy: pvDoSearch, changed: false, unit: "")
-var prot = MRProtocolRef()
-var opts = newOpts()
-prot["TE"] = teProperty
-prot["Int"] = intProperty
-prot["Bool"] = boolProperty
-prot["String"] = stringProperty
-var protCopy = prot.copy
-protCopy["TE"].floatMax = prot["TE"].floatVal
-echo binarySearch[true, float](opts, protCopy, "TE", validateTest)
-protCopy = prot.copy
-protCopy["TE"].floatMin = prot["TE"].floatVal
-echo binarySearch[false, float](opts, protCopy, "TE", validateTest)
-app.init()
-var window = newWindow("Test")
-window.width = 300
-window.height = 100
-window.resizable = false
-#var editorContainer = numericEditor[float](window, opts, prot, "TE", validateTest)
-#var editorContainer = boolEditor(window, opts, prot, "Bool", validateTest)
-var editorContainer = comboEditor(window, opts, prot, "String", validateTest)
+
+when isMainModule:
+    var teProperty = ProtocolProperty(pType: ptFloat, floatMin: 0, floatMax: 1000, floatVal: 50, floatIncr: 1, validateStrategy: pvDoSearch, changed: false, unit: "ms")
+    var intProperty = ProtocolProperty(pType: ptInt, intMin: 20, intMax: 100, intVal: 50, intIncr: 1, validateStrategy: pvNoSearch, changed: false, unit: "u")
+    var boolProperty = ProtocolProperty(pType: ptBool, boolVal: true, validateStrategy: pvNoSearch, changed: false, unit: "")
+    var stringProperty = ProtocolProperty(pType: ptStringList, stringVal: "Hello", stringList: @["Ciao", "Hello", "Hallo", "Geia"], validateStrategy: pvDoSearch, changed: false, unit: "")
+    var prot = MRProtocolRef()
+    var opts = newOpts()
+    prot["TE"] = teProperty
+    prot["Int"] = intProperty
+    prot["Bool"] = boolProperty
+    prot["String"] = stringProperty
+    var protCopy = prot.copy
+    protCopy["TE"].floatMax = prot["TE"].floatVal
+    echo binarySearch[true, float](opts, protCopy, "TE", validateTest)
+    protCopy = prot.copy
+    protCopy["TE"].floatMin = prot["TE"].floatVal
+    echo binarySearch[false, float](opts, protCopy, "TE", validateTest)
+    app.init()
+    var window = newWindow("Test")
+    window.width = 300
+    window.height = 100
+    window.resizable = false
+    #var editorContainer = numericEditor[float](window, opts, prot, "TE", validateTest)
+    #var editorContainer = boolEditor(window, opts, prot, "Bool", validateTest)
+    var editorContainer = comboEditor(window, opts, prot, "String", validateTest)
 
 
-window.add(editorContainer)
-window.show()
-app.run()
+    window.add(editorContainer)
+    window.show()
+    app.run()
