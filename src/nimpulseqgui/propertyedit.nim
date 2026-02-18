@@ -357,18 +357,17 @@ proc showPropertyEditor*(opts: Opts, prot: MRProtocolRef, propertyName: string, 
 
 # Test
 
-var validateTest: ProcValidateProtocol = proc (opts: Opts, protocol: MRProtocolRef): bool =
-    var prop = protocol["TE"].floatVal
-    if prop < 10 or prop > 100:
-        return false
-    if protocol["Bool"].boolVal == false:
-        return false
-    if protocol["String"].stringVal == "Hallo":
-        return false
-    return true
-
-
 when isMainModule:
+    proc validateTest(opts: Opts, protocol: MRProtocolRef): bool =
+        var prop = protocol["TE"].floatVal
+        if prop < 10 or prop > 100:
+            return false
+        if protocol["Bool"].boolVal == false:
+            return false
+        if protocol["String"].stringVal == "Hallo":
+            return false
+        return true
+
     var teProperty = ProtocolProperty(pType: ptFloat, floatMin: 0, floatMax: 1000, floatVal: 50, floatIncr: 1, validateStrategy: pvDoSearch, changed: false, unit: "ms")
     var intProperty = ProtocolProperty(pType: ptInt, intMin: 20, intMax: 100, intVal: 50, intIncr: 1, validateStrategy: pvNoSearch, changed: false, unit: "u")
     var boolProperty = ProtocolProperty(pType: ptBool, boolVal: true, validateStrategy: pvNoSearch, changed: false, unit: "")

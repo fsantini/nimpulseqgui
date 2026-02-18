@@ -45,3 +45,21 @@ type
 proc copy*(src: MRProtocolRef): MRProtocolRef =
     result = new MRProtocolRef
     result[] = src[]
+
+proc newFloatProperty*(val, min, max, incr: float; validate: PropertyValidate = pvNoSearch; unit: string = ""): ProtocolProperty =
+  ProtocolProperty(pType: ptFloat, floatVal: val, floatMin: min, floatMax: max, floatIncr: incr,
+                   validateStrategy: validate, changed: false, unit: unit)
+
+proc newIntProperty*(val, min, max, incr: int; validate: PropertyValidate = pvNoSearch; unit: string = ""): ProtocolProperty =
+  ProtocolProperty(pType: ptInt, intVal: val, intMin: min, intMax: max, intIncr: incr,
+                   validateStrategy: validate, changed: false, unit: unit)
+
+proc newBoolProperty*(val: bool; validate: PropertyValidate = pvNoSearch): ProtocolProperty =
+  ProtocolProperty(pType: ptBool, boolVal: val, validateStrategy: validate, changed: false, unit: "")
+
+proc newStringListProperty*(val: string; list: seq[string]; validate: PropertyValidate = pvNoSearch): ProtocolProperty =
+  ProtocolProperty(pType: ptStringList, stringVal: val, stringList: list, validateStrategy: validate, changed: false, unit: "")
+
+proc newDescriptionProperty*(desc: string): ProtocolProperty =
+  ProtocolProperty(pType: ptDescription, description: desc)
+
