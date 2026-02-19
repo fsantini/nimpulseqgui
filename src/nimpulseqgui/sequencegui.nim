@@ -3,6 +3,7 @@ import nimpulseq
 import nigui, nigui/msgbox
 import definitions
 import std/strformat, std/strutils
+import io
 
 const darkBGColor = rgb(192, 192, 192)
 const lightBGColor = rgb(224, 224, 224)
@@ -72,82 +73,6 @@ proc createPropertyContainer(propertyName: string, opts: Opts, prot: MRProtocolR
     propContainer.add(labelValue)
     return (propContainer, updateValue)
 
-proc makeProtocolPreamble(prot: MRProtocolRef): string =
-    var preambleLines: seq[string] = @["NimPulseqGUI Protocol Parameters:"]
-    for key in prot.keys:
-        let prop = prot[key]
-        var line = key & ": "
-        case prop.pType
-        of ptDescription:
-            let escapedDesc = replace(prop.description, "\n", "\\n")
-            line &= escapedDesc
-        of ptInt: line &= $prop.intVal
-        of ptFloat: line &= formatFloat(prop.floatVal, prop.floatIncr)
-        of ptBool:
-            if prop.boolVal:
-                line &= "True"
-            else:
-                line &= "False"
-        of ptStringList: line &= prop.stringVal
-        preambleLines.add(line)
-    preambleLines.add("NimpPulseqGUI Protocol End")
-    return preambleLines.join("\n")
-
-proc readProtocolFromFile(fileName: string, opts: Opts, defaultProt: MRProtocolRef, validateProt: ProcValidateProtocol): seq[string] =
-    # open sequence file and read lines until we find the protocol preamble. Then read the protocol parameters until we find the end of the preamble
-    var f = open(fileName)
-    var line: string
-    var protocolFound = false
-    var localProt = defaultProt.copy
-    var warnings: seq[string] = @[]
-    while not f.endOfFile:
-        line = f.readLine()
-        # if line includes [VERSION] we can stop searching, since the preamble should be before that
-        if line.contains("[VERSION]"):
-            break
-        if line.contains("NimPulseqGUI Protocol Parameters:"):
-            protocolFound = true
-            continue
-        if line.contains("NimpPulseqGUI Protocol End"):
-            break
-        if protocolFound:
-            # this should be a parameter line. We can split it by ": " to get the name and value (remove the initial # and the spaces around)
-            let parts = line[1..^1].split(": ")
-            let varName = parts[0].strip()
-            let varValue = parts[1].strip()
-            if not localProt.contains(varName):
-                warnings.add(&"Warning: Protocol parameter '{varName}' in file not recognized. Ignoring.")
-                continue
-            let prop = localProt[varName]
-            case prop.pType
-            of ptDescription:
-                localProt[varName].description = varValue.replace("\\n", "\n")
-            of ptInt:
-                let parsedInt = parseInt(varValue)
-                localProt[varName].intVal = parsedInt
-            of ptFloat:
-                let parsedFloat = parseFloat(varValue)
-                localProt[varName].floatVal = parsedFloat
-            of ptBool:
-                if varValue.toLowerAscii() == "true":
-                    localProt[varName].boolVal = true
-                else:
-                    localProt[varName].boolVal = false
-            of ptStringList:
-                if prop.stringList.contains(varValue):
-                    localProt[varName].stringVal = varValue
-                else:
-                    warnings.add(&"Warning: Value '{varValue}' for parameter '{varName}' not in allowed list. Ignoring.")
-    f.close()
-    if not protocolFound:
-        warnings.add("Warning: No protocol preamble found in file. Using default protocol values.")
-    if not validateProt(opts, localProt):
-        warnings.add("Warning: Protocol values read from file did not pass validation. Using default protocol values.")
-        return warnings
-    # if we got here, the protocol is valid, so we can copy the values to the default protocol reference (since the protocol reference is mutable, we can just copy the values over)
-    defaultProt[] = localProt[]
-    return warnings
-
 proc sequenceGUI*(outputFolder: string, opts: Opts, prot: MRProtocolRef, validateProc: ProcValidateProtocol, makeSequence: ProcMakeSequence): Window {. discardable .} =
     var window = newWindow("Nimpulseq GUI")
     window.width = 800.scaleToDpi
@@ -176,9 +101,14 @@ proc sequenceGUI*(outputFolder: string, opts: Opts, prot: MRProtocolRef, validat
 
     var saveButton = newButton("Write Sequence")
     saveButton.onClick = proc(click: ClickEvent) =
-        if validateProc(opts, prot):
-            var seq = makeSequence(opts, prot)
-            var preamble = makeProtocolPreamble(prot)
+        if safeValidateProtocol(opts, prot, validateProc):
+            var seq: Sequence
+            try:
+                seq = makeSequence(opts, prot)
+            except Exception as e:
+                msgBox(window, "Error compiling sequence:\n" & e.msg, "Error")
+                return
+            let preamble = makeProtocolPreamble(prot)
             try:
                 writeSeq(seq, outputFolder, preamble = preamble)
                 msgBox(window, "Sequence written successfully to:\n" & outputFolder, "Success")

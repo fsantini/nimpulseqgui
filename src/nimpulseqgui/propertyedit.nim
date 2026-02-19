@@ -45,7 +45,7 @@ proc binarySearch[searchMin: static bool, T](opts: Opts, protocolCopy: MRProtoco
     # test the middle value
     var testValue = lowerBound + increment*T(int(nSteps/2))
     setValue(testValue)
-    if validateProc(opts, protocolCopy):
+    if safeValidateProtocol(opts, protocolCopy, validateProc):
         when searchMin:
             # the middle value is OK, it means that whatever is larger than this, it must pass also.
             # reduce the upper search bound 
@@ -176,7 +176,7 @@ proc numericEditor[T](window: Window, opts: Opts, prot: MRProtocolRef, propertyN
         setVal(localProt, value)
         localProt[propertyName].changed = true
         
-        if not validateProc(opts, localProt):
+        if not safeValidateProtocol(opts, localProt, validateProc):
             alert(window, "Invalid value!")
             textEdit.backgroundColor = errorColor
             return false
@@ -244,7 +244,7 @@ proc boolEditor(window: Window, opts: Opts, prot: MRProtocolRef, propertyName: s
         localProt[propertyName].changed = true
         localProt[propertyName].boolVal = value
 
-        return validateProc(opts, localProt)
+        return safeValidateProtocol(opts, localProt, validateProc)
 
     # if the property has a search strategy, check the other value to see if it's admissible
     if prot[propertyName].validateStrategy == pvDoSearch:
@@ -301,7 +301,7 @@ proc comboEditor(window: Window, opts: Opts, prot: MRProtocolRef, propertyName: 
         localProt[propertyName].changed = true
         localProt[propertyName].stringVal = value
 
-        return validateProc(opts, localProt)
+        return safeValidateProtocol(opts, localProt, validateProc)
 
     # if the property has a search strategy, only add the entries that are admissible
     if prot[propertyName].validateStrategy == pvDoSearch:

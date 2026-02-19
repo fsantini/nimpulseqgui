@@ -3,6 +3,7 @@ export sequtils
 import std/tables
 export tables
 import nimpulseq
+export nimpulseq
 
 type
   PropertyType* = enum
@@ -46,6 +47,9 @@ proc copy*(src: MRProtocolRef): MRProtocolRef =
     result = new MRProtocolRef
     result[] = src[]
 
+proc newProtocol*(): MRProtocolRef =
+    new(result)
+
 proc newFloatProperty*(val, min, max, incr: float; validate: PropertyValidate = pvNoSearch; unit: string = ""): ProtocolProperty =
   ProtocolProperty(pType: ptFloat, floatVal: val, floatMin: min, floatMax: max, floatIncr: incr,
                    validateStrategy: validate, changed: false, unit: unit)
@@ -63,3 +67,11 @@ proc newStringListProperty*(val: string; list: seq[string]; validate: PropertyVa
 proc newDescriptionProperty*(desc: string): ProtocolProperty =
   ProtocolProperty(pType: ptDescription, description: desc)
 
+proc safeValidateProtocol*(opts: Opts, protocol: MRProtocolRef, validateProc: ProcValidateProtocol): bool =
+  var isValid: bool
+  try:
+      isValid = validateProc(opts, protocol)
+  except Exception as e:
+      echo "Error during protocol validation: ", e.msg
+      return false
+  return isValid
