@@ -36,7 +36,7 @@ proc binarySearch[searchMin: static bool, T](opts: Opts, protocolCopy: MRProtoco
     protocolCopy[propertyName].changed = true
 
     var nSteps = int(round((upperBound - lowerBound)/increment))
-    if nSteps <= 2:
+    if nSteps <= 1:
         when searchMin:
             return upperBound
         else:

@@ -1,8 +1,8 @@
 import propertyedit
 import nimpulseq
-import nigui
+import nigui, nigui/msgbox
 import definitions
-import std/strformat
+import std/strformat, std/strutils
 
 const darkBGColor = rgb(192, 192, 192)
 const lightBGColor = rgb(224, 224, 224)
@@ -14,7 +14,8 @@ proc formatFloat(v: float, increment: float): string =
         return &"{v:.2f}"
     return &"{v:.1f}"
 
-proc createPropertyContainer(propertyName: string, opts: Opts, prot: MRProtocolRef, validateProc: ProcValidateProtocol, parentWindow: Window, darkBG: bool): LayoutContainer =
+# this creates a container for a property, which includes the label, the value and the edit button. It also returns a callback that can be used to update the value label when the property is changed
+proc createPropertyContainer(propertyName: string, opts: Opts, prot: MRProtocolRef, validateProc: ProcValidateProtocol, parentWindow: Window, darkBG: bool): (LayoutContainer, proc()) =
     let prop = prot[propertyName]
 
     var propContainer = newLayoutContainer(Layout_Horizontal)
@@ -69,23 +70,152 @@ proc createPropertyContainer(propertyName: string, opts: Opts, prot: MRProtocolR
     editButton.onClick = editPressCallback
 
     propContainer.add(labelValue)
-    return propContainer
+    return (propContainer, updateValue)
 
-proc sequenceGUI*(opts: Opts, prot: MRProtocolRef, validateProc: ProcValidateProtocol, makeSequence: ProcMakeSequence): Window {. discardable .} =
+proc makeProtocolPreamble(prot: MRProtocolRef): string =
+    var preambleLines: seq[string] = @["NimPulseqGUI Protocol Parameters:"]
+    for key in prot.keys:
+        let prop = prot[key]
+        var line = key & ": "
+        case prop.pType
+        of ptDescription:
+            let escapedDesc = replace(prop.description, "\n", "\\n")
+            line &= escapedDesc
+        of ptInt: line &= $prop.intVal
+        of ptFloat: line &= formatFloat(prop.floatVal, prop.floatIncr)
+        of ptBool:
+            if prop.boolVal:
+                line &= "True"
+            else:
+                line &= "False"
+        of ptStringList: line &= prop.stringVal
+        preambleLines.add(line)
+    preambleLines.add("NimpPulseqGUI Protocol End")
+    return preambleLines.join("\n")
+
+proc readProtocolFromFile(fileName: string, opts: Opts, defaultProt: MRProtocolRef, validateProt: ProcValidateProtocol): seq[string] =
+    # open sequence file and read lines until we find the protocol preamble. Then read the protocol parameters until we find the end of the preamble
+    var f = open(fileName)
+    var line: string
+    var protocolFound = false
+    var localProt = defaultProt.copy
+    var warnings: seq[string] = @[]
+    while not f.endOfFile:
+        line = f.readLine()
+        # if line includes [VERSION] we can stop searching, since the preamble should be before that
+        if line.contains("[VERSION]"):
+            break
+        if line.contains("NimPulseqGUI Protocol Parameters:"):
+            protocolFound = true
+            continue
+        if line.contains("NimpPulseqGUI Protocol End"):
+            break
+        if protocolFound:
+            # this should be a parameter line. We can split it by ": " to get the name and value (remove the initial # and the spaces around)
+            let parts = line[1..^1].split(": ")
+            let varName = parts[0].strip()
+            let varValue = parts[1].strip()
+            if not localProt.contains(varName):
+                warnings.add(&"Warning: Protocol parameter '{varName}' in file not recognized. Ignoring.")
+                continue
+            let prop = localProt[varName]
+            case prop.pType
+            of ptDescription:
+                localProt[varName].description = varValue.replace("\\n", "\n")
+            of ptInt:
+                let parsedInt = parseInt(varValue)
+                localProt[varName].intVal = parsedInt
+            of ptFloat:
+                let parsedFloat = parseFloat(varValue)
+                localProt[varName].floatVal = parsedFloat
+            of ptBool:
+                if varValue.toLowerAscii() == "true":
+                    localProt[varName].boolVal = true
+                else:
+                    localProt[varName].boolVal = false
+            of ptStringList:
+                if prop.stringList.contains(varValue):
+                    localProt[varName].stringVal = varValue
+                else:
+                    warnings.add(&"Warning: Value '{varValue}' for parameter '{varName}' not in allowed list. Ignoring.")
+    f.close()
+    if not protocolFound:
+        warnings.add("Warning: No protocol preamble found in file. Using default protocol values.")
+    if not validateProt(opts, localProt):
+        warnings.add("Warning: Protocol values read from file did not pass validation. Using default protocol values.")
+        return warnings
+    # if we got here, the protocol is valid, so we can copy the values to the default protocol reference (since the protocol reference is mutable, we can just copy the values over)
+    defaultProt[] = localProt[]
+    return warnings
+
+proc sequenceGUI*(outputFolder: string, opts: Opts, prot: MRProtocolRef, validateProc: ProcValidateProtocol, makeSequence: ProcMakeSequence): Window {. discardable .} =
     var window = newWindow("Nimpulseq GUI")
     window.width = 800.scaleToDpi
     window.height = 600.scaleToDpi
     var mainContainer = newLayoutContainer(Layout_Vertical)
+    var propertyPanelContainer = newLayoutContainer(Layout_Vertical)
+    propertyPanelContainer.widthMode = WidthMode_Expand
+    propertyPanelContainer.heightMode = HeightMode_Expand
 
     var darkBG = false
+    var updateCallbacks: seq[proc()] = @[]
     for propName in prot.keys:
-        mainContainer.add(createPropertyContainer(propName, opts, prot, validateProc, window, darkBG))
+        let (propContainer, updateCallback) = createPropertyContainer(propName, opts, prot, validateProc, window, darkBG)
+        propertyPanelContainer.add(propContainer)
+        updateCallbacks.add(updateCallback)
         darkBG = not darkBG
+    mainContainer.add(propertyPanelContainer)
+
+    var saveContainer = newLayoutContainer(Layout_Horizontal)
+    saveContainer.yAlign = YAlign_Center
+    saveContainer.padding = 10
+
+    var savePathText = newTextBox(outputFolder)
+    savePathText.widthMode = WidthMode_Expand
+
+
+    var saveButton = newButton("Write Sequence")
+    saveButton.onClick = proc(click: ClickEvent) =
+        if validateProc(opts, prot):
+            var seq = makeSequence(opts, prot)
+            var preamble = makeProtocolPreamble(prot)
+            try:
+                writeSeq(seq, outputFolder, preamble = preamble)
+                msgBox(window, "Sequence written successfully to:\n" & outputFolder, "Success")
+            except OSError as e:
+                msgBox(window, "Error writing sequence to file:\n" & e.msg, "Error")
+        else:
+            msgBox(window, "Validation Error!\nOne or more protocol parameters are out of the allowed range. Please check your parameters and try again.", "Error")
+
+    var loadButton = newButton("Load...")
+    loadButton.onClick = proc(click: ClickEvent) =
+        var fileDialog = newOpenFileDialog()
+        fileDialog.title = "Select Sequence File"
+        fileDialog.multiple = false
+        fileDialog.run
+        if fileDialog.files.len > 0:
+            let selectedFile = fileDialog.files[0]
+            var warnings = readProtocolFromFile(selectedFile, opts, prot, validateProc)
+            if warnings.len > 0:
+                msgBox(window, "Warnings while reading protocol from file:\n" & warnings.join("\n"), "Warning")
+            else:
+                msgBox(window, "Protocol loaded successfully from file.", "Success")
+            
+            # update the view
+            for callback in updateCallbacks:
+                callback()
+
+
+    saveContainer.add(savePathText)
+    saveContainer.add(saveButton)
+    saveContainer.add(loadButton)
+    mainContainer.add(saveContainer)
+
     window.add(mainContainer)
     return window
 
 when isMainModule:
-    var validateTest: ProcValidateProtocol = proc (opts: Opts, protocol: MRProtocolRef): bool =
+    proc validateTest(opts: Opts, protocol: MRProtocolRef): bool =
         var prop = protocol["TE"].floatVal
         if prop < 10 or prop > 100:
             return false
@@ -95,6 +225,10 @@ when isMainModule:
             return false
         return true
 
+    proc makeSequence(opts: Opts, protocol: MRProtocolRef): Sequence =
+        # Empty sequence for testing
+        var seq = newSequence()
+        return seq
 
     var teProperty = ProtocolProperty(pType: ptFloat, floatMin: 0, floatMax: 1000, floatVal: 50, floatIncr: 1, validateStrategy: pvDoSearch, changed: false, unit: "ms")
     var intProperty = ProtocolProperty(pType: ptInt, intMin: 20, intMax: 100, intVal: 50, intIncr: 1, validateStrategy: pvNoSearch, changed: false, unit: "myunit")
@@ -110,6 +244,6 @@ when isMainModule:
     prot["String"] = stringProperty
     
     app.init()
-    var window = sequenceGUI(opts, prot, validateTest, nil)
+    var window = sequenceGUI("test.seq", opts, prot, validateTest, makeSequence)
     window.show()
     app.run()
