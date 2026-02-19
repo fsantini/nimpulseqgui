@@ -1,7 +1,7 @@
 import definitions
 import sequencegui
 import std/parseopt 
-import pulseq_systems
+import pulseqsystems
 import nimpulseq
 import std/os
 import std/strformat, std/strutils
