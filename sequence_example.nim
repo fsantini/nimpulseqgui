@@ -193,4 +193,4 @@ proc writeGreLabelSeq(opts: Opts, prot: MRProtocolRef): Sequence =
 
     return seqObj
 
-makeSequenceExe(greDefaultProtocol, validateProtocol, writeGreLabelSeq)
+makeSequenceExe(greDefaultProtocol, validateProtocol, writeGreLabelSeq, "Simple GRE Example in NimPulseSeqGUI")

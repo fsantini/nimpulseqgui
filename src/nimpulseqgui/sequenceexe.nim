@@ -72,7 +72,8 @@ proc printModels(manufacturer: string) =
 
 proc makeSequenceExe*(getDefaultProtocol: ProcGetDefaultProtocol,
                      validateProtocol: ProcValidateProtocol,
-                     makeSequence: ProcMakeSequence) =
+                     makeSequence: ProcMakeSequence,
+                     title: string = "") =
     var prot: MRProtocolRef
     var defaultOutput: string = ""
     var inputProtocolFile: string = ""
@@ -219,6 +220,8 @@ proc makeSequenceExe*(getDefaultProtocol: ProcGetDefaultProtocol,
     if launchGUI:
         app.init()
         var window = sequenceGUI(defaultOutput, opts, prot, validateProtocol, makeSequence)
+        if title != "":
+            window.title = title
         window.show()
         app.run()
     else:
