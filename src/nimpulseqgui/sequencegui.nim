@@ -101,6 +101,7 @@ proc sequenceGUI*(outputFolder: string, opts: Opts, prot: MRProtocolRef, validat
 
     var saveButton = newButton("Write Sequence")
     saveButton.onClick = proc(click: ClickEvent) =
+        let outputFolder = savePathText.text
         if safeValidateProtocol(opts, prot, validateProc):
             var seq: Sequence
             try:

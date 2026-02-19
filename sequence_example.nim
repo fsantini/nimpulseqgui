@@ -191,6 +191,9 @@ proc writeGreLabelSeq(opts: Opts, prot: MRProtocolRef): Sequence =
             echo e
         raise newException(ValueError, "Timing check failed. See error report for details.")
 
+    seqObj.setDefinition("Name", "gre_example")
+    seqObj.setDefinition("FOV", @[fov, fov, sliceThickness])
+
     return seqObj
 
 makeSequenceExe(greDefaultProtocol, validateProtocol, writeGreLabelSeq, "Simple GRE Example in NimPulseSeqGUI")
