@@ -8,6 +8,11 @@ import std/strutils
 const errorColor = rgb(255, 128, 128, 255)
 const okColor = rgb(255, 255, 255, 255)
 
+template addStretch(container: LayoutContainer) =
+    var emptyLabel = newLabel()
+    emptyLabel.heightMode = HeightMode_Expand
+    container.add(emptyLabel)
+
 # search the minimum or maximum in a binary search. Assume that the minimum value fails, and the maximum value passes. Ensure this in the 
 # calling function.
 proc binarySearch[searchMin: static bool, T](opts: Opts, protocolCopy: MRProtocolRef, propertyName: string, validateProc: ProcValidateProtocol): T =
@@ -130,7 +135,7 @@ proc numericEditor[T](window: Window, opts: Opts, prot: MRProtocolRef, propertyN
     editWidgetsContainer.add(unitLabel)
     editWidgetsContainer.add(validateButton)
     editorContainer.add(editWidgetsContainer)
-    var minMaxLabel = newLabel("Min: " & formatVal(min) & " Max: " & formatVal(max))
+    var minMaxLabel = newLabel("Min: " & formatVal(min) & " Max: " & formatVal(max) & "\nIncrement: " & formatVal(increment))
     minMaxLabel.widthMode = WidthMode_Fill
     minMaxLabel.xTextAlign = XTextAlign_Center
     editorContainer.add(minMaxLabel)
@@ -141,6 +146,9 @@ proc numericEditor[T](window: Window, opts: Opts, prot: MRProtocolRef, propertyN
     var buttonContainer = newLayoutContainer(Layout_Horizontal)
     buttonContainer.add(okButton)
     buttonContainer.add(cancelButton)
+
+    addStretch(editorContainer)
+
     editorContainer.add(buttonContainer)
 
     # align value to min/max and increment
@@ -236,6 +244,9 @@ proc boolEditor(window: Window, opts: Opts, prot: MRProtocolRef, propertyName: s
     var buttonContainer = newLayoutContainer(Layout_Horizontal)
     buttonContainer.add(okButton)
     buttonContainer.add(cancelButton)
+
+    addStretch(editorContainer)
+
     editorContainer.add(buttonContainer)
 
     proc validateEntry(value: bool): bool =
@@ -293,6 +304,9 @@ proc comboEditor(window: Window, opts: Opts, prot: MRProtocolRef, propertyName: 
     var buttonContainer = newLayoutContainer(Layout_Horizontal)
     buttonContainer.add(okButton)
     buttonContainer.add(cancelButton)
+
+    addStretch(editorContainer)
+    
     editorContainer.add(buttonContainer)
 
     proc validateEntry(value: string): bool =
@@ -389,9 +403,9 @@ when isMainModule:
     window.width = 300
     window.height = 100
     window.resizable = false
-    #var editorContainer = numericEditor[float](window, opts, prot, "TE", validateTest)
+    var editorContainer = numericEditor[float](window, opts, prot, "TE", validateTest)
     #var editorContainer = boolEditor(window, opts, prot, "Bool", validateTest)
-    var editorContainer = comboEditor(window, opts, prot, "String", validateTest)
+    #var editorContainer = comboEditor(window, opts, prot, "String", validateTest)
 
 
     window.add(editorContainer)
