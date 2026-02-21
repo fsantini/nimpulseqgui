@@ -25,7 +25,7 @@ api:
 
 html: api
 	@echo "==> Building HTML with Sphinx..."
-	$(SPHINXBUILD) -M html $(SOURCEDIR) $(BUILDDIR) $(SPHINXOPTS)
+	LC_ALL=C.UTF-8 LANG=C.UTF-8 $(SPHINXBUILD) -M html $(SOURCEDIR) $(BUILDDIR) $(SPHINXOPTS)
 	@echo ""
 	@echo "HTML output: $(BUILDDIR)/html/index.html"
 
