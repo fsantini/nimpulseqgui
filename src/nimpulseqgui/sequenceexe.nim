@@ -1,14 +1,18 @@
+## CLI entry point for nimpulseqgui sequence applications.
+##
+## Parses command-line arguments, resolves scanner hardware specifications
+## (optionally from the PulseqSystems database), constructs an ``Opts`` record,
+## and dispatches to either the interactive GUI or a headless write mode.
+
 import definitions
 import sequencegui
-import std/parseopt 
+import std/parseopt
 import pulseqsystems
 import nimpulseq
 import std/os
 import std/strformat, std/strutils
 import nigui
 import io
-
-# This file provides the main entry point for the application, and is responsible for parsing command line arguments and launching the GUI.
 
 proc printHelp() =
     let name = getAppFilename().extractFilename()
@@ -74,6 +78,32 @@ proc makeSequenceExe*(getDefaultProtocol: ProcGetDefaultProtocol,
                      validateProtocol: ProcValidateProtocol,
                      makeSequence: ProcMakeSequence,
                      title: string = "") =
+    ## Application entry point for nimpulseqgui-based sequence executables.
+    ##
+    ## Call this proc as the body of your ``main`` (or at the top level of your
+    ## script) with three user-supplied callbacks:
+    ##
+    ## - ``getDefaultProtocol`` — returns the default ``MRProtocolRef`` for the given ``Opts``.
+    ## - ``validateProtocol`` — returns ``true`` when the current protocol is valid.
+    ## - ``makeSequence`` — builds and returns a ``Sequence`` from the current protocol.
+    ##
+    ## The optional ``title`` parameter sets the GUI window title.
+    ##
+    ## Supported command-line flags (parsed automatically):
+    ##
+    ## - ``--output / -o`` *(required)*: output ``.seq`` file path.
+    ## - ``--input / -i``: load protocol parameters from an existing ``.seq`` file.
+    ## - ``--manufacturer``, ``--model``, ``--gradient``: select a scanner preset from PulseqSystems.
+    ## - ``--maxGrad``, ``--maxSlew``, ``--riseTime``: override gradient hardware limits.
+    ## - ``--rfDeadTime``, ``--rfRingdownTime``, ``--adcDeadTime``: override timing dead times.
+    ## - ``--adcRasterTime``, ``--rfRasterTime``, ``--gradRasterTime``, ``--blockDurationRaster``: raster overrides.
+    ## - ``--adcSamplesLimit``, ``--adcSamplesDivisor``: ADC constraint overrides.
+    ## - ``--gamma``, ``--B0``: physical constants overrides.
+    ## - ``--scaleGradients``, ``--scaleSlewRate``: scaling factors applied to preset specs.
+    ## - ``--gradUnit``, ``--slewUnit``: units for gradient and slew-rate values.
+    ## - ``--no-gui``: write the sequence directly without launching the GUI.
+    ## - ``--list-manufacturers``, ``--list-models``: list available PulseqSystems presets and exit.
+    ## - ``--help / -h``: print help and exit.
     var prot: MRProtocolRef
     var defaultOutput: string = ""
     var inputProtocolFile: string = ""

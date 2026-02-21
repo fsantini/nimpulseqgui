@@ -1,3 +1,9 @@
+## Protocol persistence — reading and writing the nimpulseqgui preamble block in Pulseq ``.seq`` files.
+##
+## The preamble is embedded in the ``.seq`` file between the markers
+## ``[NimPulseqGUI Protocol]`` and ``[NimPulseqGUI Protocol End]``.
+## Each line has the form ``key: value`` (newlines within values are escaped as ``\n``).
+
 import definitions
 import std/strformat, std/strutils
 import nimpulseq
@@ -6,6 +12,16 @@ const protocolPreambleStart = "[NimPulseqGUI Protocol]"
 const protocolPreambleEnd = "[NimPulseqGUI Protocol End]"
 
 proc readProtocolFromFile*(fileName: string, opts: Opts, defaultProt: MRProtocolRef, validateProc: ProcValidateProtocol): seq[string] =
+    ## Reads protocol parameters from the nimpulseqgui preamble block in *fileName*.
+    ##
+    ## Scans the file for the ``[NimPulseqGUI Protocol]`` marker and parses
+    ## ``key: value`` lines until ``[NimPulseqGUI Protocol End]`` or ``[VERSION]`` is reached.
+    ## Parsed values are applied to *defaultProt* in place only if the resulting protocol
+    ## passes ``validateProc``.
+    ##
+    ## Returns a sequence of warning strings (empty on full success).
+    ## Warnings are emitted for unrecognised keys, out-of-list string values,
+    ## a missing preamble block, or a protocol that fails validation.
     # open sequence file and read lines until we find the protocol preamble. Then read the protocol parameters until we find the end of the preamble
     var f = open(fileName)
     var line: string
@@ -70,6 +86,13 @@ proc formatFloat(v: float, increment: float): string =
     return &"{v:.1f}"
 
 proc makeProtocolPreamble*(prot: MRProtocolRef): string =
+    ## Serialises *prot* to a nimpulseqgui preamble string suitable for embedding in a ``.seq`` file.
+    ##
+    ## The returned string starts with ``[NimPulseqGUI Protocol]``, contains one
+    ## ``key: value`` line per property (in insertion order), and ends with
+    ## ``[NimPulseqGUI Protocol End]``.  Newlines within description values are
+    ## escaped as ``\n``.  Pass this string as the ``preamble`` argument to
+    ## ``writeSeq``.
     var preambleLines: seq[string] = @[protocolPreambleStart]
     for key in prot.keys:
         let prop = prot[key]

@@ -1,3 +1,9 @@
+## Main GUI window for nimpulseqgui sequence applications.
+##
+## Builds the primary window containing a scrollable list of protocol property
+## rows (Edit button, parameter name, current value), an output-path text box,
+## and Write/Load buttons.
+
 import propertyedit
 import nimpulseq
 import nigui, nigui/msgbox
@@ -74,6 +80,17 @@ proc createPropertyContainer(propertyName: string, opts: Opts, prot: MRProtocolR
     return (propContainer, updateValue)
 
 proc sequenceGUI*(outputFolder: string, opts: Opts, prot: MRProtocolRef, validateProc: ProcValidateProtocol, makeSequence: ProcMakeSequence): Window {. discardable .} =
+    ## Creates and returns the main sequence GUI window.
+    ##
+    ## The window contains one row per entry in *prot* (in insertion order), showing
+    ## an *Edit* button, the parameter name, and the current value.  Below the
+    ## property list there is an output-path text box, a *Write Sequence* button
+    ## (validates the protocol, calls *makeSequence*, and writes the ``.seq`` file),
+    ## and a *Load...* button (opens a file dialog and reads protocol parameters from
+    ## an existing ``.seq`` file).
+    ##
+    ## The returned window is not shown automatically — call ``window.show()`` after
+    ## optionally customising the title.
     var window = newWindow("Nimpulseq GUI")
     window.width = 800.scaleToDpi
     window.height = 600.scaleToDpi

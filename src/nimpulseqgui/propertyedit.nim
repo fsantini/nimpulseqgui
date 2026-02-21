@@ -1,3 +1,9 @@
+## Modal property editor windows for nimpulseqgui.
+##
+## Provides type-specific editor dialogs (numeric text box, checkbox, combo box)
+## and the binary-search algorithm used to auto-discover valid value ranges when
+## a property's ``validateStrategy`` is ``pvDoSearch``.
+
 import nigui
 import definitions
 import nimpulseq
@@ -347,8 +353,20 @@ proc comboEditor(window: Window, opts: Opts, prot: MRProtocolRef, propertyName: 
 
     return editorContainer
 
-# This creates a window to edit a property. The container inside the window depends on the property type
 proc showPropertyEditor*(opts: Opts, prot: MRProtocolRef, propertyName: string, validateProc: ProcValidateProtocol): Window {. discardable .} =
+    ## Creates and returns a modal editor window for the named protocol property.
+    ##
+    ## The editor type is selected automatically from the property's ``pType``:
+    ##
+    ## - ``ptFloat`` / ``ptInt``: numeric text box with min/max/increment display and *Validate* button.
+    ##   If ``validateStrategy == pvDoSearch``, binary search is used to narrow the displayed range
+    ##   to the values that actually pass *validateProc*.
+    ## - ``ptBool``: checkbox; the other value is tested first, and the checkbox is disabled if
+    ##   toggling is not allowed.
+    ## - ``ptStringList``: combo box; entries that fail validation are omitted when ``pvDoSearch``.
+    ## - ``ptDescription``: no editor is opened (returns without adding a container).
+    ##
+    ## The window is not shown automatically — call ``window.showModal(parent)`` after this proc.
     let prop = prot[propertyName]
     var editorWindow = newWindow("Edit property " & propertyName)
     editorWindow.width = 300.scaleToDpi
